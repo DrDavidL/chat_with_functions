@@ -8,6 +8,14 @@ openai = "*"
 streamlit = "*"
 streamlit-chat = "*"
 python-dotenv = "*"
+beautifulsoup4 = "*"
+newsapi-python = "*"
+markdown = "*"
+python-utils = "*"
+torch = "*"
+open-clip-torch = "*"
+wolframalpha = "*"
+pillow = "*"
 
 [dev-packages]
 
