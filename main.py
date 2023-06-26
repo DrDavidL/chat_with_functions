@@ -142,6 +142,38 @@ load_dotenv()
 
 if 'last_response' not in st.session_state:
      st.session_state.last_response = ''
+     
+def check_openai_api_key():
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if api_key:
+        st.write("*API key active - ready to respond!*")
+    else:
+        st.warning("API key not found as an environmental variable.")
+        api_key = st.text_input("Enter your OpenAI API key:")
+
+        if st.button("Save"):
+            if is_valid_api_key(api_key):
+                os.environ["OPENAI_API_KEY"] = api_key
+                st.success("API key saved as an environmental variable!")
+                return api_key
+            else:
+                st.error("Invalid API key. Please enter a valid API key.")
+                
+def check_news_api_key():
+    news_api_key = os.environ.get("NEWS_API_KEY")
+    if news_api_key:
+        st.write("*News API key active - ready to check the news!*")
+    else:
+        st.warning("NewsAPI key not found as an environmental variable.")
+        news_api_key = st.text_input("Enter your NewsAPI key:")
+        if st.button("Save"):
+            # if is_valid_api_key(news_api_key):
+            #     os.environ["NEWS_API_KEY"] = news_api_key
+            os.environ["NEWS_API_KEY"] = news_api_key
+            st.success("News API key saved as an environmental variable!")
+            # else:
+            #     st.error("Invalid API key. Please enter a valid API key.")
+            return news_api_key
 
 def is_valid_api_key(api_key):
     openai.api_key = api_key
@@ -186,6 +218,79 @@ def check_password():
         # Password correct.
         return True
 
+def testbot(question):
+    if "messages" not in st.session_state:
+        st.session_state["messages"] = [
+            # {"role": "system", "content": prefix_teacher},
+            # {"role": "user", "content": "Who won the world series in 2020?"},
+            # {"role": "assistant", "content": "I'm sorry, that is outside my expertise in data science and medicine."},
+            {"role": "assistant", "content": "Hi! Ask me wikidata questions or python code to execute."}
+            ]
+    st.session_state.messages.append({"role": "user", "content": question})
+    COMPLETION_MODEL = "gpt-3.5-turbo-0613"
+    response = openai.ChatCompletion.create(
+        model=COMPLETION_MODEL,
+        messages=st.session_state.messages,
+        functions=[
+            {
+            "name": "wikidata_sparql_query",
+            "description": "Executes a SPARQL query on Wikidata and returns the result as a JSON string.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "The SPARQL query to execute. Must be a SINGLE LINE STRING!"},
+                },
+                "required": ["query"],
+                },
+            },
+            {
+            "name": "python_repl",
+            "description": "Executes the provided Python code and returns the output.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "code": {"type": "string", "description": "The Python code to execute. Remember to print the output!"},
+                },
+                "required": ["code"],
+                },
+            },
+        ],
+        temperature=0,
+    )
+    if response.choices[0]["finish_reason"] == "stop":
+        st.write(response.choices[0]["message"]["content"])
+        # break
+
+    elif response.choices[0]["finish_reason"] == "function_call":
+        fn_name = response.choices[0].message["function_call"].name
+        arguments = response.choices[0].message["function_call"].arguments
+        step2(fn_name, arguments)
+
+def step2(fn_name, arguments):
+    
+    function = locals()[fn_name]
+    result = function(arguments)
+
+    st.session_state.messages.append(
+        {
+            "role": "assistant",
+            "content": None,
+            "function_call": {
+                "name": fn_name,
+                "arguments": arguments,
+            },
+        }
+    )
+
+    st.session_state.messages.append(
+        {
+            "role": "function", 
+            "name": fn_name, 
+            "content": f'{{"result": {str(result)} }}'}
+    )
+
+
+    
                 
 def start_chatbot():
 
@@ -194,24 +299,42 @@ def start_chatbot():
     If the question is appropriate, you teach for students at all levels. Your response appears next to a web  
     tool that can generate bar charts, violin charts, histograms, pie charts, scatterplots, and summary statistics for  sample datasets or a user supplied CSV file.         
     """
-    st.write("💬 Chatbot Teacher")
+    # st.write("💬 Chatbot Teacher")
     
         # Check if the API key exists as an environmental variable
-    api_key = os.environ.get("OPENAI_API_KEY")
+    # api_key = st.secrets["OPENAI_API_KEY"]
+    
+    # try:
+    #     api_key = st.secrets["OPENAI_API_KEY"]
+    #     # api_key = st.secrets["OPENAI_API_KEY"]
+    #     # os.environ["OPENAI_API_KEY"] = api_key
+    #     st.write("*API key active - ready to respond!*")
+    # except:
+    #     st.warning("OpenAPI key not found as an environmental variable.")
+    #     api_key = st.text_input("Enter your OpenAI API key:")
 
-    if api_key:
-        st.write("*API key active - ready to respond!*")
-    else:
-        st.warning("API key not found as an environmental variable.")
-        api_key = st.text_input("Enter your OpenAI API key:")
+    #     if st.button("Save"):
+    #         if is_valid_api_key(api_key):
+    #             os.environ["OPENAI_API_KEY"] = api_key
+    #             st.success("API key saved as an environmental variable!")
+    #             st.secrets["OPENAI_API_KEY"] = os.environ["OPENAI_API_KEY"]
+    #         else:
+    #             st.error("Invalid API key. Please enter a valid API key.")
 
-        if st.button("Save"):
-            if is_valid_api_key(api_key):
-                os.environ["OPENAI_API_KEY"] = api_key
-                st.success("API key saved as an environmental variable!")
-            else:
-                st.error("Invalid API key. Please enter a valid API key.")
+    # try:
+    #     news_api_key = st.secrets["NEWS_API_KEY"]
+    #     st.write("*News API key active - ready to check the news!*")
+    # except:
+    #     st.warning("NewsAPI key not found as an environmental variable.")
+    #     news_api_key = st.text_input("Enter your NewsAPI key:")
 
+    #     if st.button("Save"):
+    #         # if is_valid_api_key(news_api_key):
+    #         #     os.environ["NEWS_API_KEY"] = news_api_key
+    #         st.success("News API key saved as an environmental variable!")
+    #         # else:
+    #         #     st.error("Invalid API key. Please enter a valid API key.")
+    
         
     if "messages" not in st.session_state:
         st.session_state["messages"] = [
@@ -379,6 +502,19 @@ with st.expander('About Chatbot'):
 activate_chatbot = st.checkbox("Activate Chatbot with Functions", key = "activate chatbot")   
 if activate_chatbot:
     if check_password():
-        start_chatbot()
+        api_key = check_openai_api_key()
+        question = st.text_input("What would you like to ask the chatbot?", key = "user input")
+        if st.button("Start Chatbot"):
+            # response = testbot(question)
+
+            # testbot(question)
+            response = testbot(st.session_state.messages)
+            st.write(response)
+            st.write(response.choices[0]["message"]["content"])
+
+
+        
+
+        
     # st.sidebar.text_area("Teacher:", value=st.session_state.last_response, height=600, max_chars=None)
     
