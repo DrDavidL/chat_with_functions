@@ -4,6 +4,7 @@ import openai
 import requests
 import streamlit as st
 import os
+<<<<<<< HEAD
 from newsapi import NewsApiClient
 
 
@@ -94,6 +95,7 @@ class AI:
                     },  
                 },
                 {
+<<<<<<< HEAD
                     "name": "get_headlines",
                     "description": "Looks for subject based news stories and returns the result as a JSON string.",
                     "parameters": {
@@ -105,10 +107,23 @@ class AI:
                     }
                 }
                 
+=======
+                    "name": "scrape_webpage",
+                    "description": "Scrapes a webpage and returns the result as a JSON string.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "url": {"type": "string", "description": "The URL of the webpage to scrape."},
+                        },
+                        "required": ["url"],
+                    },
+                },
+>>>>>>> 344b110 (test functional!)
             ]
         # self.api_key = st.secrets["OPENAI_API_KEY"]
         self.messages = [
-            {"role": "user", "content": "You are a researcher's helper who, as needed, accesses Wikidata via the function 'wikidata_sparql_query' on behalf of a researcher."},
+            {"role": "user", "content": "You are a researcher's helper who, as needed, determines facts using Wikidata via the 'wikkidata_sparql-query' function."},
+            {"role": "user", "content": "You are a researcher's helper who, as needed, opens a URL to scrape a webpage using 'scrape_webpage' function."},
             ]
     def get_headlines(self, query: str) -> str:
         news_api_key = os.environ["NEWS_API_KEY"]
@@ -163,6 +178,58 @@ class AI:
         except Exception as e:
             return f"An error occurred: {e}"
         
+    def scrape_webpage(self, url: str) -> str:
+        try:
+            headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) ",
+            "Referer": "https://www.google.com/",
+            }
+            headers2 = {
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7", 
+    "Accept-Encoding": "gzip, deflate, br", 
+    "Accept-Language": "en-US,en;q=0.9", 
+    "Host": "httpbin.org", 
+    "Referer": "https://www.scraperapi.com/", 
+    "Sec-Ch-Ua": "\"Not.A/Brand\";v=\"8\", \"Chromium\";v=\"114\", \"Microsoft Edge\";v=\"114\"", 
+    "Sec-Ch-Ua-Mobile": "?0", 
+    "Sec-Ch-Ua-Platform": "\"macOS\"", 
+    "Sec-Fetch-Dest": "document", 
+    "Sec-Fetch-Mode": "navigate", 
+    "Sec-Fetch-Site": "cross-site", 
+    "Sec-Fetch-User": "?1", 
+    "Upgrade-Insecure-Requests": "1", 
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36 Edg/114.0.1823.58", 
+    "X-Amzn-Trace-Id": "Root=1-649f9199-75d5dd99543795db31a59e98"
+  }
+            st.write(f'Here is the function  captured URL: {url}')
+            response = requests.get(url, headers=headers)
+            response.raise_for_status()  # Raises a HTTPError if the status is 4xx, 5xx
+
+            # Parse the webpage with BeautifulSoup
+            soup = BeautifulSoup(response.text, 'html.parser')
+
+            # Remove any existing <a> tags (hyperlinks)
+            for a in soup.find_all('a', href=True):
+                a.decompose()
+
+            # Remove any existing <img> tags (images)
+            for img in soup.find_all('img', src=True):
+                img.decompose()
+
+            # Extract text from the parsed HTML
+            text = soup.get_text()
+
+            # Remove extra whitespace
+            text = ' '.join(text.split())
+
+            return text
+        except requests.HTTPError as e:
+            return f"A HTTP error occurred: {str(e)}"
+        except requests.RequestException as e:
+            return f"A request exception occurred: {str(e)}"
+        except Exception as e:
+            return f"An error occurred: {e}"
+        
     def call_ai(self, new_message):
         if new_message:
             self.messages.append({"role": "user", "content": new_message})
@@ -210,6 +277,26 @@ class AI:
                 logging.debug(function_response)
                 # We add the response to messages
                 self.messages.append({"role": "function", "name": mid_process["function_call"]["name"], "content": function_response})
+
+                self.call_ai(new_message=None) # pass the function response back to AI
+                
+            if msg['function_call']['name'] == 'scrape_webpage':
+                # ['function_call']['arguments'] contains the arguments of the function
+                logging.debug(msg['function_call']['arguments'])
+                # Here, we call the requested function and get a response as a string
+                st.write("sending message to scrape_webpage")
+                # url = extract_url(msg['function_call']['arguments'])
+                st.write(f' here is the full message: {msg}')
+                st.write(f" here is the supposed url: {msg['function_call']['arguments']}")
+                real_url = json.loads(msg['function_call']['arguments'])['url']
+                st.write(f' here is the real url: {real_url}')
+                function_response = self.scrape_webpage(real_url)
+                # function_response = self.scrape_webpage(url)
+                st.write("got response from scrape_webpage")
+                st.write(function_response)
+                logging.debug(function_response)
+                # We add the response to messages
+                self.messages.append({"role": "function", "name": msg["function_call"]["name"], "content": function_response})
 
                 self.call_ai(new_message=None) # pass the function response back to AI
 

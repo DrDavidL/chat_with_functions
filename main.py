@@ -5,6 +5,7 @@ import os
 from dotenv import dotenv_values, load_dotenv
 from random import randint
 from PIL import Image
+from bs4 import BeautifulSoup
 from functions import function_params, wikidata_sparql_query, scrape_webpage, write_file, knowledgebase_create_entry, knowledgebase_list_entries, knowledgebase_read_entry, python_repl, read_csv_columns, image_to_text, read_file, edit_file, list_history_entries, write_history_entry, read_history_entry, query_wolframalpha
 # from functions import function_params, wikidata_sparql_query
 import json
